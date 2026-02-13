@@ -39,6 +39,11 @@
         "require": "./build/cjs/index.server.js"
       }
     },
+    "./config": {
+      "types": "./build/types/config/index.d.ts",
+      "import": "./build/esm/config/index.js",
+      "require": "./build/cjs/config/index.js"
+    },
     "./solidrouter": {
       "types": "./solidrouter.d.ts",
       "browser": {

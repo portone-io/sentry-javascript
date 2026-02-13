@@ -1,19 +1,12 @@
-import { debug } from '@sentry/core';
-import type { Nitro } from 'nitropack';
-import { addSentryPluginToVite } from '../vite/sentrySolidStartVite';
-import type { SentrySolidStartPluginOptions } from '../vite/types';
-import {
-  addDynamicImportEntryFileWrapper,
-  addInstrumentationFileToBuild,
-  addSentryTopImport,
-} from './addInstrumentation';
-import type { RollupConfig, SolidStartInlineConfig, SolidStartInlineServerConfig } from './types';
+Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
-const defaultSentrySolidStartPluginOptions: Omit<
-  SentrySolidStartPluginOptions,
-  'experimental_entrypointWrappedFunctions'
-> &
-  Required<Pick<SentrySolidStartPluginOptions, 'experimental_entrypointWrappedFunctions'>> = {
+const core = require('@sentry/core');
+const sentrySolidStartVite = require('../vite/sentrySolidStartVite.js');
+const addInstrumentation = require('./addInstrumentation.js');
+
+const defaultSentrySolidStartPluginOptions
+
+ = {
   experimental_entrypointWrappedFunctions: ['default', 'handler', 'server'],
 };
 
@@ -26,22 +19,22 @@ const defaultSentrySolidStartPluginOptions: Omit<
  * @param sentrySolidStartPluginOptions Options to configure the plugin
  * @returns The modified config to be exported and passed back into `defineConfig`
  */
-export function withSentry(
-  solidStartConfig: SolidStartInlineConfig = {},
-  sentrySolidStartPluginOptions: SentrySolidStartPluginOptions,
-): SolidStartInlineConfig {
+function withSentry(
+  solidStartConfig = {},
+  sentrySolidStartPluginOptions,
+) {
   const sentryPluginOptions = {
     ...sentrySolidStartPluginOptions,
     ...defaultSentrySolidStartPluginOptions,
   };
 
-  const server = (solidStartConfig.server || {}) as SolidStartInlineServerConfig;
+  const server = (solidStartConfig.server || {}) ;
   const hooks = server.hooks || {};
   const viteConfig = solidStartConfig.vite;
   const vite =
     typeof viteConfig === 'function'
-      ? (...args: Parameters<typeof viteConfig>) => addSentryPluginToVite(viteConfig(...args), sentryPluginOptions)
-      : addSentryPluginToVite(viteConfig, sentryPluginOptions);
+      ? (...args) => sentrySolidStartVite.addSentryPluginToVite(viteConfig(...args), sentryPluginOptions)
+      : sentrySolidStartVite.addSentryPluginToVite(viteConfig, sentryPluginOptions);
 
   return {
     ...solidStartConfig,
@@ -50,19 +43,19 @@ export function withSentry(
       ...server,
       hooks: {
         ...hooks,
-        async 'rollup:before'(nitro: Nitro, config: RollupConfig) {
+        async 'rollup:before'(nitro, config) {
           if (sentrySolidStartPluginOptions?.autoInjectServerSentry === 'experimental_dynamic-import') {
-            await addDynamicImportEntryFileWrapper({ nitro, rollupConfig: config, sentryPluginOptions });
+            await addInstrumentation.addDynamicImportEntryFileWrapper({ nitro, rollupConfig: config, sentryPluginOptions });
 
             sentrySolidStartPluginOptions.debug &&
-              debug.log(
+              core.debug.log(
                 'Wrapping the server entry file with a dynamic `import()`, so Sentry can be preloaded before the server initializes.',
               );
           } else {
-            await addInstrumentationFileToBuild(nitro);
+            await addInstrumentation.addInstrumentationFileToBuild(nitro);
 
             if (sentrySolidStartPluginOptions?.autoInjectServerSentry === 'top-level-import') {
-              await addSentryTopImport(nitro);
+              await addInstrumentation.addSentryTopImport(nitro);
             }
           }
 
@@ -75,3 +68,6 @@ export function withSentry(
     },
   };
 }
+
+exports.withSentry = withSentry;
+//# sourceMappingURL=withSentry.js.map

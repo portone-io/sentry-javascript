@@ -1,18 +1,13 @@
-import type { UserConfig } from 'vite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeBuildInstrumentationFilePlugin } from '../../src/vite/buildInstrumentationFile';
 
-const fsAccessMock = vi.fn();
+const fsAccessSyncMock = vi.fn();
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual('fs');
   return {
     ...actual,
-    promises: {
-      // @ts-expect-error this exists
-      ...actual.promises,
-      access: () => fsAccessMock(),
-    },
+    accessSync: (...args: unknown[]) => fsAccessSyncMock(...args),
   };
 });
 
@@ -23,105 +18,152 @@ beforeEach(() => {
 });
 
 describe('makeBuildInstrumentationFilePlugin()', () => {
-  const viteConfig: UserConfig & { router: { target: string; name: string; root: string } } = {
-    router: {
-      target: 'server',
-      name: 'ssr',
-      root: '/some/project/path',
-    },
-    build: {
-      rollupOptions: {
-        input: ['/path/to/entry1.js', '/path/to/entry2.js'],
-      },
-    },
-  };
-
-  it('returns a plugin to set `sourcemaps` to `true`', () => {
+  it('returns a plugin with correct metadata', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
 
     expect(buildInstrumentationFilePlugin.name).toEqual('sentry-solidstart-build-instrumentation-file');
     expect(buildInstrumentationFilePlugin.apply).toEqual('build');
     expect(buildInstrumentationFilePlugin.enforce).toEqual('post');
-    expect(buildInstrumentationFilePlugin.config).toEqual(expect.any(Function));
+    expect(buildInstrumentationFilePlugin.configEnvironment).toEqual(expect.any(Function));
   });
 
-  it('adds the instrumentation file for server builds', async () => {
+  it('adds the instrumentation file for the ssr environment', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(viteConfig, { command: 'build' });
-    expect(config.build.rollupOptions.input).toContain('/some/project/path/src/instrument.server.ts');
+    const config = {
+      build: {
+        rollupOptions: {
+          input: ['/path/to/entry1.js', '/path/to/entry2.js'],
+        },
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(result?.build?.rollupOptions?.input).toEqual(
+      expect.arrayContaining([expect.stringContaining('instrument.server.ts')]),
+    );
   });
 
-  it('adds the correct instrumentation file', async () => {
+  it('adds the correct custom instrumentation file', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin({
       instrumentation: './src/myapp/instrument.server.ts',
     });
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(viteConfig, { command: 'build' });
-    expect(config.build.rollupOptions.input).toContain('/some/project/path/src/myapp/instrument.server.ts');
-  });
-
-  it("doesn't add the instrumentation file for server function builds", async () => {
-    const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(
-      {
-        ...viteConfig,
-        router: {
-          ...viteConfig.router,
-          name: 'server-fns',
+    const config = {
+      build: {
+        rollupOptions: {
+          input: ['/path/to/entry1.js'],
         },
       },
-      { command: 'build' },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(result?.build?.rollupOptions?.input).toEqual(
+      expect.arrayContaining([expect.stringContaining('myapp/instrument.server.ts')]),
     );
-    expect(config.build.rollupOptions.input).not.toContain('/some/project/path/src/instrument.server.ts');
   });
 
-  it("doesn't add the instrumentation file for client builds", async () => {
+  it('does not modify config for non-ssr environments', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(
-      {
-        ...viteConfig,
-        router: {
-          ...viteConfig.router,
-          target: 'client',
+    const config = {
+      build: {
+        rollupOptions: {
+          input: ['/path/to/entry1.js'],
         },
       },
-      { command: 'build' },
-    );
-    expect(config.build.rollupOptions.input).not.toContain('/some/project/path/src/instrument.server.ts');
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const clientResult = buildInstrumentationFilePlugin.configEnvironment('client', config);
+    expect(clientResult).toBeUndefined();
+
+    // @ts-expect-error - configEnvironment is always defined
+    const serverFnsResult = buildInstrumentationFilePlugin.configEnvironment('server-fns', config);
+    expect(serverFnsResult).toBeUndefined();
   });
 
-  it("doesn't add the instrumentation file when serving", async () => {
+  it('handles string input by converting to array', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(viteConfig, { command: 'serve' });
-    expect(config.build.rollupOptions.input).not.toContain('/some/project/path/src/instrument.server.ts');
+    const config = {
+      build: {
+        rollupOptions: {
+          input: '/path/to/entry.js',
+        },
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(Array.isArray(result?.build?.rollupOptions?.input)).toBe(true);
+    expect(result?.build?.rollupOptions?.input).toHaveLength(2);
+    expect(result?.build?.rollupOptions?.input[0]).toBe('/path/to/entry.js');
   });
 
-  it("doesn't modify the config if the instrumentation file doesn't exist", async () => {
-    fsAccessMock.mockRejectedValueOnce(undefined);
+  it('handles Record input by adding entry', () => {
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(viteConfig, { command: 'build' });
-    expect(config).toEqual(viteConfig);
+    const config = {
+      build: {
+        rollupOptions: {
+          input: { main: '/path/to/entry.js' },
+        },
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(result?.build?.rollupOptions?.input).toHaveProperty('main', '/path/to/entry.js');
+    expect(result?.build?.rollupOptions?.input).toHaveProperty('instrument.server');
   });
 
-  it("logs a warning if the instrumentation file doesn't exist", async () => {
+  it('handles undefined input', () => {
+    const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
+    const config = {
+      build: {
+        rollupOptions: {},
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(Array.isArray(result?.build?.rollupOptions?.input)).toBe(true);
+    expect(result?.build?.rollupOptions?.input).toHaveLength(1);
+  });
+
+  it("doesn't modify the config if the instrumentation file doesn't exist", () => {
+    fsAccessSyncMock.mockImplementationOnce(() => {
+      throw new Error("File doesn't exist.");
+    });
+    const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
+    const config = {
+      build: {
+        rollupOptions: {
+          input: ['/path/to/entry1.js'],
+        },
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(result).toBeUndefined();
+  });
+
+  it("logs a warning if the instrumentation file doesn't exist", () => {
     const error = new Error("File doesn't exist.");
-    fsAccessMock.mockRejectedValueOnce(error);
+    fsAccessSyncMock.mockImplementationOnce(() => {
+      throw error;
+    });
     const buildInstrumentationFilePlugin = makeBuildInstrumentationFilePlugin();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - this is always defined and always a function
-    const config = await buildInstrumentationFilePlugin.config(viteConfig, { command: 'build' });
-    expect(config).toEqual(viteConfig);
+    const config = {
+      build: {
+        rollupOptions: {
+          input: ['/path/to/entry1.js'],
+        },
+      },
+    };
+
+    // @ts-expect-error - configEnvironment is always defined
+    const result = buildInstrumentationFilePlugin.configEnvironment('ssr', config);
+    expect(result).toBeUndefined();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       '[Sentry SolidStart Plugin] Could not access `./src/instrument.server.ts`, please make sure it exists.',
       error,

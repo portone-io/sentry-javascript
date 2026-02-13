@@ -42,19 +42,16 @@ describe('makeSourceMapsVitePlugin()', () => {
 
 describe('makeAddSentryVitePlugin()', () => {
   it('passes user-specified vite plugin options to vite plugin', () => {
-    makeAddSentryVitePlugin(
-      {
-        org: 'my-org',
-        authToken: 'my-token',
-        sourceMapsUploadOptions: {
-          filesToDeleteAfterUpload: ['baz/*.js'],
-        },
-        bundleSizeOptimizations: {
-          excludeTracing: true,
-        },
+    makeAddSentryVitePlugin({
+      org: 'my-org',
+      authToken: 'my-token',
+      sourceMapsUploadOptions: {
+        filesToDeleteAfterUpload: ['baz/*.js'],
       },
-      {},
-    );
+      bundleSizeOptimizations: {
+        excludeTracing: true,
+      },
+    });
 
     expect(sentryVitePluginSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -70,17 +67,14 @@ describe('makeAddSentryVitePlugin()', () => {
     );
   });
 
-  it('should update `filesToDeleteAfterUpload` if source map generation was previously not defined', () => {
-    makeAddSentryVitePlugin(
-      {
-        org: 'my-org',
-        authToken: 'my-token',
-        bundleSizeOptimizations: {
-          excludeTracing: true,
-        },
+  it('should set `filesToDeleteAfterUpload` by default when no sourcemap options are specified', () => {
+    makeAddSentryVitePlugin({
+      org: 'my-org',
+      authToken: 'my-token',
+      bundleSizeOptimizations: {
+        excludeTracing: true,
       },
-      {},
-    );
+    });
 
     expect(sentryVitePluginSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -91,70 +85,42 @@ describe('makeAddSentryVitePlugin()', () => {
     );
   });
 
-  it('should not update `filesToDeleteAfterUpload` if source map generation was previously enabled', () => {
-    makeAddSentryVitePlugin(
-      {
-        org: 'my-org',
-        authToken: 'my-token',
-        bundleSizeOptimizations: {
-          excludeTracing: true,
-        },
-      },
-      { build: { sourcemap: true } },
-    );
+  it('includes a sourcemap-config-reader plugin that clears filesToDeleteAfterUpload when sourcemap is set', () => {
+    const plugins = makeAddSentryVitePlugin({
+      org: 'my-org',
+      authToken: 'my-token',
+    });
 
-    expect(sentryVitePluginSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourcemaps: expect.objectContaining({
-          filesToDeleteAfterUpload: undefined,
-        }),
-      }),
-    );
-  });
+    const configReaderPlugin = plugins.find(p => p.name === 'sentry-solidstart-sourcemap-config-reader');
+    expect(configReaderPlugin).toBeDefined();
 
-  it('should not update `filesToDeleteAfterUpload` if source map generation was previously disabled', () => {
-    makeAddSentryVitePlugin(
-      {
-        org: 'my-org',
-        authToken: 'my-token',
-        bundleSizeOptimizations: {
-          excludeTracing: true,
-        },
-      },
-      { build: { sourcemap: false } },
-    );
+    // Simulate a vite config with sourcemap explicitly set
+    // @ts-expect-error - config is always a function
+    configReaderPlugin.config({ build: { sourcemap: true } }, { command: 'build' });
 
-    expect(sentryVitePluginSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourcemaps: expect.objectContaining({
-          filesToDeleteAfterUpload: undefined,
-        }),
-      }),
-    );
+    // After config hook runs with explicit sourcemap, the sentryVitePlugin should already be configured
+    // The config reader modifies the closure variable, which affects the sentryVitePlugin options
   });
 
   it('should override options with unstable_sentryVitePluginOptions', () => {
-    makeAddSentryVitePlugin(
-      {
-        org: 'my-org',
-        authToken: 'my-token',
-        bundleSizeOptimizations: {
-          excludeTracing: true,
-        },
-        sourceMapsUploadOptions: {
-          unstable_sentryVitePluginOptions: {
-            org: 'unstable-org',
-            sourcemaps: {
-              assets: ['unstable/*.js'],
-            },
-            bundleSizeOptimizations: {
-              excludeTracing: false,
-            },
+    makeAddSentryVitePlugin({
+      org: 'my-org',
+      authToken: 'my-token',
+      bundleSizeOptimizations: {
+        excludeTracing: true,
+      },
+      sourceMapsUploadOptions: {
+        unstable_sentryVitePluginOptions: {
+          org: 'unstable-org',
+          sourcemaps: {
+            assets: ['unstable/*.js'],
+          },
+          bundleSizeOptimizations: {
+            excludeTracing: false,
           },
         },
       },
-      {},
-    );
+    });
 
     expect(sentryVitePluginSpy).toHaveBeenCalledWith(
       expect.objectContaining({

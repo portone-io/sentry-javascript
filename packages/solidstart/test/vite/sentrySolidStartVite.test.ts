@@ -10,15 +10,12 @@ vi.spyOn(console, 'warn').mockImplementation(() => {
 });
 
 function getSentrySolidStartVitePlugins(options?: Parameters<typeof sentrySolidStartVite>[0]): Plugin[] {
-  return sentrySolidStartVite(
-    {
-      project: 'project',
-      org: 'org',
-      authToken: 'token',
-      ...options,
-    },
-    {},
-  );
+  return sentrySolidStartVite({
+    project: 'project',
+    org: 'org',
+    authToken: 'token',
+    ...options,
+  });
 }
 
 describe('sentrySolidStartVite()', () => {
@@ -27,6 +24,7 @@ describe('sentrySolidStartVite()', () => {
     const names = plugins.map(plugin => plugin.name);
     expect(names).toEqual([
       'sentry-solidstart-build-instrumentation-file',
+      'sentry-solidstart-sourcemap-config-reader',
       'sentry-telemetry-plugin',
       'sentry-vite-injection-plugin',
       'sentry-release-management-plugin',

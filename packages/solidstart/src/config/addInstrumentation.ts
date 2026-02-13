@@ -37,7 +37,7 @@ export async function addInstrumentationFileToBuild(nitro: Nitro): Promise<void>
         await fs.promises.mkdir(assetsServerDir, { recursive: true });
         consoleSandbox(() => {
           // eslint-disable-next-line no-console
-          console.log(`[Sentry SolidStart withSentry] Successfully created directory ${assetsServerDir}.`);
+          console.log(`[Sentry SolidStart Plugin] Successfully created directory ${assetsServerDir}.`);
         });
       }
 
@@ -56,13 +56,13 @@ export async function addInstrumentationFileToBuild(nitro: Nitro): Promise<void>
           await fs.promises.copyFile(releaseSource, releaseDestination);
           consoleSandbox(() => {
             // eslint-disable-next-line no-console
-            console.log(`[Sentry SolidStart withSentry] Successfully created ${releaseDestination}.`);
+            console.log(`[Sentry SolidStart Plugin] Successfully created ${releaseDestination}.`);
           });
         }
       } catch (err) {
         consoleSandbox(() => {
           // eslint-disable-next-line no-console
-          console.warn('[Sentry SolidStart withSentry] Failed to copy release injection file.', err);
+          console.warn('[Sentry SolidStart Plugin] Failed to copy release injection file.', err);
         });
       }
 
@@ -73,12 +73,12 @@ export async function addInstrumentationFileToBuild(nitro: Nitro): Promise<void>
       await fs.promises.copyFile(instrumentSource, instrumentDestination);
       consoleSandbox(() => {
         // eslint-disable-next-line no-console
-        console.log(`[Sentry SolidStart withSentry] Successfully created ${instrumentDestination}.`);
+        console.log(`[Sentry SolidStart Plugin] Successfully created ${instrumentDestination}.`);
       });
     } catch (error) {
       consoleSandbox(() => {
         // eslint-disable-next-line no-console
-        console.warn('[Sentry SolidStart withSentry] Failed to add instrumentation file to build.', error);
+        console.warn('[Sentry SolidStart Plugin] Failed to add instrumentation file to build.', error);
       });
     }
   });
@@ -111,7 +111,7 @@ export async function addSentryTopImport(nitro: Nitro): Promise<void> {
       consoleSandbox(() => {
         // eslint-disable-next-line no-console
         console.warn(
-          `[Sentry SolidStart withSentry] Failed to add \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
+          `[Sentry SolidStart Plugin] Failed to add \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
           error,
         );
       });
@@ -126,13 +126,13 @@ export async function addSentryTopImport(nitro: Nitro): Promise<void> {
       consoleSandbox(() => {
         // eslint-disable-next-line no-console
         console.log(
-          `[Sentry SolidStart withSentry] Added \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
+          `[Sentry SolidStart Plugin] Added \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
         );
       });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.warn(
-        `[Sentry SolidStart withSentry] An error occurred when trying to add \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
+        `[Sentry SolidStart Plugin] An error occurred when trying to add \`${instrumentationFile}\` as top level import to \`${serverEntryFile}\`.`,
         error,
       );
     }

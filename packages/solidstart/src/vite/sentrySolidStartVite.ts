@@ -1,12 +1,26 @@
-import type { Plugin, UserConfig } from 'vite';
+import type { Plugin } from 'vite';
 import { makeBuildInstrumentationFilePlugin } from './buildInstrumentationFile';
 import { makeAddSentryVitePlugin, makeEnableSourceMapsVitePlugin } from './sourceMaps';
 import type { SentrySolidStartPluginOptions } from './types';
 
 /**
  * Various Sentry vite plugins to be used for SolidStart.
+ *
+ * Usage in `vite.config.ts`:
+ * ```typescript
+ * import { defineConfig } from "vite";
+ * import { solidStart } from "@solidjs/start/config";
+ * import { sentrySolidStartVite } from "@sentry/solidstart/config";
+ *
+ * export default defineConfig({
+ *   plugins: [
+ *     sentrySolidStartVite({ org: '...', project: '...' }),
+ *     solidStart({ ... }),
+ *   ],
+ * });
+ * ```
  */
-export const sentrySolidStartVite = (options: SentrySolidStartPluginOptions = {}, viteConfig: UserConfig): Plugin[] => {
+export function sentrySolidStartVite(options: SentrySolidStartPluginOptions = {}): Plugin[] {
   const sentryPlugins: Plugin[] = [];
 
   if (options.autoInjectServerSentry !== 'experimental_dynamic-import') {
@@ -15,7 +29,7 @@ export const sentrySolidStartVite = (options: SentrySolidStartPluginOptions = {}
 
   if (process.env.NODE_ENV !== 'development') {
     if (options.sourceMapsUploadOptions?.enabled ?? true) {
-      const sourceMapsPlugin = makeAddSentryVitePlugin(options, viteConfig);
+      const sourceMapsPlugin = makeAddSentryVitePlugin(options);
       const enableSourceMapsPlugin = makeEnableSourceMapsVitePlugin(options);
 
       sentryPlugins.push(...sourceMapsPlugin, ...enableSourceMapsPlugin);
@@ -23,17 +37,4 @@ export const sentrySolidStartVite = (options: SentrySolidStartPluginOptions = {}
   }
 
   return sentryPlugins;
-};
-
-/**
- * Helper to add the Sentry SolidStart vite plugin to a vite config.
- */
-export const addSentryPluginToVite = (config: UserConfig = {}, options: SentrySolidStartPluginOptions): UserConfig => {
-  const plugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
-  plugins.unshift(sentrySolidStartVite(options, config));
-
-  return {
-    ...config,
-    plugins,
-  };
-};
+}

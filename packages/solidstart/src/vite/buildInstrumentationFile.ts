@@ -1,32 +1,31 @@
 import { consoleSandbox } from '@sentry/core';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Plugin, UserConfig } from 'vite';
+import type { Plugin } from 'vite';
 import type { SentrySolidStartPluginOptions } from './types';
 
 /**
  * A Sentry plugin for SolidStart to build the server
  * `instrument.server.ts` file.
+ *
+ * Uses the Vite 7 Environment API (`configEnvironment`) to only add the
+ * instrumentation file to the SSR environment build.
  */
 export function makeBuildInstrumentationFilePlugin(options: SentrySolidStartPluginOptions = {}): Plugin {
   return {
     name: 'sentry-solidstart-build-instrumentation-file',
     apply: 'build',
     enforce: 'post',
-    async config(config: UserConfig, { command }) {
-      const instrumentationFilePath = options.instrumentation || './src/instrument.server.ts';
-      const router = (config as UserConfig & { router: { target: string; name: string; root: string } }).router;
-      const build = config.build || {};
-      const rollupOptions = build.rollupOptions || {};
-      const input = [...((rollupOptions.input || []) as string[])];
-
-      // plugin runs for client, server and sever-fns, we only want to run it for the server once.
-      if (command !== 'build' || router.target !== 'server' || router.name === 'server-fns') {
-        return config;
+    configEnvironment(name, config) {
+      if (name !== 'ssr') {
+        return;
       }
 
+      const instrumentationFilePath = options.instrumentation || './src/instrument.server.ts';
+      const resolvedPath = path.resolve(process.cwd(), instrumentationFilePath);
+
       try {
-        await fs.promises.access(instrumentationFilePath, fs.constants.F_OK);
+        fs.accessSync(resolvedPath, fs.constants.F_OK);
       } catch (error) {
         consoleSandbox(() => {
           // eslint-disable-next-line no-console
@@ -35,18 +34,31 @@ export function makeBuildInstrumentationFilePlugin(options: SentrySolidStartPlug
             error,
           );
         });
-        return config;
+        return;
       }
 
-      input.push(path.resolve(router.root, instrumentationFilePath));
+      const build = config.build || {};
+      const rollupOptions = build.rollupOptions || {};
+      const existingInput = rollupOptions.input;
+
+      let mergedInput: string | string[] | Record<string, string>;
+
+      if (typeof existingInput === 'string') {
+        mergedInput = [existingInput, resolvedPath];
+      } else if (Array.isArray(existingInput)) {
+        mergedInput = [...existingInput, resolvedPath];
+      } else if (typeof existingInput === 'object' && existingInput !== null) {
+        mergedInput = { ...existingInput, 'instrument.server': resolvedPath };
+      } else {
+        mergedInput = [resolvedPath];
+      }
 
       return {
-        ...config,
         build: {
           ...build,
           rollupOptions: {
             ...rollupOptions,
-            input,
+            input: mergedInput,
           },
         },
       };

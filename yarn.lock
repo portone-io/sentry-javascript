@@ -29967,9 +29967,9 @@ sqlstring@^2.3.2:
   integrity sha512-qC9iz2FlN7DQl3+wjwn3802RTyjCx7sDvfQEXchwa6CWOx07/WVfh91gBmQ9fahw8snwGEWU3xGzOt4tFyHLxg==
 
 srvx@^0.11.2:
-  version "0.11.4"
-  resolved "https://registry.yarnpkg.com/srvx/-/srvx-0.11.4.tgz#0d1dd962c2320f84fc7872f2500b21c84c3d1b97"
-  integrity sha512-m/2p87bqWZ94xpRN06qNBwh0xq/D0dXajnvPDSHFqrTogxuTWYNP1UHz6Cf+oY7D+NPLY35TJAp4ESIKn0WArQ==
+  version "0.11.13"
+  resolved "https://registry.yarnpkg.com/srvx/-/srvx-0.11.13.tgz#cc77a98cb9a459c34f75ee4345bd0eef9f613a54"
+  integrity sha512-oknN6qduuMPafxKtHucUeG32Q963pjriA5g3/Bl05cwEsUe5VVbIU4qR9LrALHbipSCyBe+VmfDGGydqazDRkw==
 
 ssri@12.0.0, ssri@^12.0.0:
   version "12.0.0"
